@@ -3,6 +3,7 @@
 #CONTACT bartorgan@gmail.com
 */
 #include "lexer.h"
+#include "parser.h"
 
 #include <iostream>
 #include <vector>
@@ -12,16 +13,19 @@ int main() {
 
 	std::string path = "readFile.kx";
 
-    LEXER lexer(path, true);//file path | debug mode
+    LEXER lexer(path, false);//file path | debug mode
     lexer.start();
 
-    std::vector<TOKEN> tokens = lexer.getTokens();
+    Parser parser(lexer.getTokens());
+
+    auto ast = parser.parseExpression();
+    printAST(ast);
 
 	return 0;
 }
 
 /* TODO
 
-* Comment line needing \n to be categorized as COMMENT_LINE (if not it is IDENTIFIER)
+
 
 */

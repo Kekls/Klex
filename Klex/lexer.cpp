@@ -53,11 +53,23 @@ void LEXER::start() {
         currentColumn++;
 
         if (next == EOF) {
-            stateChange(STATE::DEFAULT);
-            categorize(buffer);
-
             stringSep = {};
             TOKEN token = {};
+
+            if (state == STATE::COMMENT_LINE) {
+                int column = currentColumn - buffer.length();
+                emit({ TOKEN_TYPE::COMMENT_LINE, currentLine, column, buffer });
+
+                buffer.clear();
+                token = {};
+
+                stateChange(STATE::DEFAULT);
+            }
+            else {
+                categorize(buffer);
+            }
+
+            
 
             token.type = TOKEN_TYPE::END_OF_FILE;
 
