@@ -10,40 +10,41 @@
 
 struct Node {
 	virtual ~Node() = default;
+	virtual void print(int depth = 0) const = 0;
 };
 
-struct NumberNode : Node {
-	float value;
+struct numberNode : public Node {
+	std::string name = "NumberNode";
+	long long value;
 
-	NumberNode(float value) : value(value) {}
+	numberNode(long long value) : value(value) {}
+	void print(int depth = 0) const override;
 };
 
-struct BinaryNode : Node {
-	TOKEN_TYPE op;
-
+struct operatorNode : public Node {
+	std::string name = "OperatorNode";
 	std::unique_ptr<Node> left;
 	std::unique_ptr<Node> right;
+	TOKEN_TYPE type;
 
-	BinaryNode(
-		TOKEN_TYPE op,
-		std::unique_ptr<Node> left,
-		std::unique_ptr<Node> right) :
-		op(op),
-		left(std::move(left)),
-		right(std::move(right))
-	{}
+	operatorNode(std::unique_ptr<Node> left, TOKEN_TYPE type): left(std::move(left)), right(nullptr), type(type) {}
+	void print(int depth = 0) const override;
 };
 
 class Parser {
 private:
-	std::vector<TOKEN> tokens;
+	std::vector<TOKEN> tokens;//stores all tokens
 	size_t current = 0;
+	bool debug;//on/off of debug mode
 
 public:
-	Parser(std::vector<TOKEN> tokens);
+	Parser(std::vector<TOKEN> tokens, bool debug);
 
-	std::unique_ptr<Node> parseExpression();
+	TOKEN peek();
+	TOKEN advance();
+	bool checkAheadTokenType(TOKEN_TYPE type);
+	bool checkTokenType(TOKEN_TYPE type);
+
+	void start();
+	std::unique_ptr<Node> parseExpresion();
 };
-
-void printIndent(int indent);
-void printAST(const std::unique_ptr<Node>& node, int indent = 0);

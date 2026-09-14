@@ -13,13 +13,11 @@ int main() {
 
 	std::string path = "readFile.kx";
 
-    LEXER lexer(path, false);//file path | debug mode
+    LEXER lexer(path, true);//file path | debug mode
     lexer.start();
 
-    Parser parser(lexer.getTokens());
-
-    auto ast = parser.parseExpression();
-    printAST(ast);
+	Parser parser(lexer.getTokens(), true);
+	parser.start();
 
 	return 0;
 }

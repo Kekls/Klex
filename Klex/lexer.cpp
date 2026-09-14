@@ -380,6 +380,8 @@ std::vector<TOKEN> LEXER::getTokens() {
 }
 
 void LEXER::dumpTokens(std::vector<TOKEN> tokens) {
+    std::cout << "--- LEXER DUMP ---\n\n";
+
     for (auto& token : tokens) {
         std::string s;
 

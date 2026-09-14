@@ -5,45 +5,126 @@
 
 #include "parser.h"
 
-Parser::Parser(std::vector<TOKEN> tokens) : tokens(std::move(tokens)) {}
+void numberNode::print(int depth) const {
+	std::string indent(depth * 2, ' ');
+	std::cout << indent << "VALUE: " << value << '\n';
+}
 
-std::unique_ptr<Node> Parser::parseExpression() {
-	TOKEN token = tokens[current];
+void operatorNode::print(int depth) const {
+	std::string indent(depth * 2, ' ');
+
+	std::cout << indent << "OPERATOR: " << LEXER::tokenToString(type) << '\n';
+
+	if (right) {
+		right->print(depth + 1);
+	}
+	else {
+		std::cout << indent << "  Right: nullptr\n";
+	}
+
+	if (left) {
+		left->print(depth + 1);
+	}
+	else {
+		std::cout << indent << "  Left: nullptr\n";
+	}
+}
+
+Parser::Parser(std::vector<TOKEN> tokens, bool debug) {
+	this->tokens = std::move(tokens);
+	this->debug = debug;
+}
+
+TOKEN Parser::peek() {
+	if (current >= tokens.size()) {
+		return TOKEN{ TOKEN_TYPE::END_OF_FILE };
+	}
+	return tokens[current];
+}
+
+TOKEN Parser::advance() {
+	if (current >= tokens.size()) {
+		return TOKEN{ TOKEN_TYPE::END_OF_FILE };
+	}
+
 	current++;
-
-	return std::make_unique<NumberNode>(std::stof(token.value));
+	return tokens[current-1];
 }
 
-void printIndent(int indent)
-{
-    for (int i = 0; i < indent; i++)
-        std::cout << "  ";
+bool Parser::checkAheadTokenType(TOKEN_TYPE type) {
+	if (current + 1 >= tokens.size()) {
+		return true;
+	}
+
+	return tokens[current + 1].type == type;
 }
 
-void printAST(const std::unique_ptr<Node>& node, int indent)
-{
-    if (!node) return;
+bool Parser::checkTokenType(TOKEN_TYPE type) {
+	return peek().type == type;
+}
 
-    // NUMBER
-    if (auto n = dynamic_cast<NumberNode*>(node.get()))
-    {
-        printIndent(indent);
-        std::cout << "Number: " << n->value << "\n";
-        return;
-    }
+void Parser::start() {
+	std::unique_ptr<Node> root = parseExpresion();
 
-    // BINARY
-    if (auto b = dynamic_cast<BinaryNode*>(node.get()))
-    {
-        printIndent(indent);
-        std::cout << "BinaryOp: " << (int)b->op << "\n";
+	if (root != nullptr) {
+		std::cout << "\n\n--- Parser DUMP ---\n\n";
+		root->print();
+	}
+	else {
+		std::cout << "Parser gave empty AST tree\n";
+	}
 
-        printAST(b->left, indent + 1);
-        printAST(b->right, indent + 1);
-        return;
-    }
+}
 
-    // fallback
-    printIndent(indent);
-    std::cout << "Unknown node\n";
+std::unique_ptr<Node> Parser::parseExpresion() {
+	TOKEN memory;
+	std::unique_ptr<operatorNode> root;
+	bool afterFirstOperator = false;
+	bool memoryEmpty = true;
+
+	while (true) {
+		if (!checkTokenType(TOKEN_TYPE::NUMBER) && !afterFirstOperator && !checkTokenType(TOKEN_TYPE::END_OF_FILE)) {
+
+			root = std::make_unique<operatorNode>(std::make_unique<numberNode>(std::stoll(memory.value)), advance().type);
+			afterFirstOperator = true;
+		}
+		else {
+			if (afterFirstOperator) {
+				if (!root) {
+					std::cout << "CRITICAL ERROR: afterFirstOperator is true, but root is nullptr!\n";
+					return nullptr;
+				}
+
+				if (!checkAheadTokenType(TOKEN_TYPE::NUMBER) && !checkAheadTokenType(TOKEN_TYPE::END_OF_FILE)) {
+					memory = advance();
+
+					root->right = std::make_unique<numberNode>(std::stoll(memory.value));
+					std::unique_ptr<operatorNode> temp;
+
+					temp = std::make_unique<operatorNode>(std::move(root), advance().type);
+					root = std::move(temp);
+				}
+				else {
+					memory = peek();
+					root->right = std::move(std::make_unique<numberNode>(std::stoll(memory.value)));
+
+					return root;
+				}
+			}
+			else {
+				if (peek().type == TOKEN_TYPE::END_OF_FILE) {
+					if (memoryEmpty) {
+						return nullptr;
+					}
+					else {
+						return std::make_unique<numberNode>(std::stoll(memory.value));
+					}
+				}
+				else {
+					memory = advance();
+					memoryEmpty = false;
+				}
+			}
+		}
+	}
 }

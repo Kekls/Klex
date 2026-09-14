@@ -106,7 +106,7 @@ public:
 
     void categorize(std::string& buffer);//categorizes base tokens NUMBER/INDENTIFIER/KEYWORDS
     void emit(TOKEN token);//pushes token into vector
-    std::string tokenToString(TOKEN_TYPE t);//stringifies tokens
+    static std::string tokenToString(TOKEN_TYPE t);//stringifies tokens
     std::vector<TOKEN> getTokens();//returns vector with tokens
     void dumpTokens(std::vector<TOKEN> tokens);//dumps all process info of lexer (debug mode only)
 
