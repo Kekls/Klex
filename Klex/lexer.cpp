@@ -249,7 +249,24 @@ void LEXER::defaultState(std::string& buffer, char current, char peek, char& str
     case ']': categorize(buffer); emit({ TOKEN_TYPE::RBRACK, currentLine, currentColumn }); break;
     case '{': categorize(buffer); emit({ TOKEN_TYPE::LBRACE, currentLine, currentColumn }); break;
     case '}': categorize(buffer); emit({ TOKEN_TYPE::RBRACE, currentLine, currentColumn }); break;
-    case '.': categorize(buffer); emit({ TOKEN_TYPE::DOT, currentLine, currentColumn }); break;
+    case '.': {
+        bool isFloat = true;
+        for (char c : buffer) {
+            if (!std::isdigit(static_cast<unsigned char>(c))) {
+                isFloat = false;
+                break;
+            }
+        }
+
+        if (!isFloat) {
+            categorize(buffer);
+            emit({ TOKEN_TYPE::DOT, currentLine, currentColumn });
+        }
+        else {
+            buffer += ".";
+        }
+        break;
+    }
     case ',': categorize(buffer); emit({ TOKEN_TYPE::COMMA, currentLine, currentColumn }); break;
     case ':': categorize(buffer); emit({ TOKEN_TYPE::COLON, currentLine, currentColumn }); break;
     case ';': categorize(buffer); emit({ TOKEN_TYPE::SEMICOLON, currentLine, currentColumn }); break;

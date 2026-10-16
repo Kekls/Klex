@@ -7,7 +7,11 @@
 
 void numberNode::print(int depth) const {
 	std::string indent(depth * 2, ' ');
-	std::cout << indent << "VALUE: " << value << '\n';
+	std::cout << indent << "VALUE: ";
+	
+	std::visit([](auto&& arg) {
+		std::cout << arg << '\n';
+		}, this->value);
 }
 
 void operatorNode::print(int depth) const {
@@ -30,101 +34,137 @@ void operatorNode::print(int depth) const {
 	}
 }
 
+void unaryOperatorNode::print(int depth) const {
+	std::string indent(depth * 2, ' ');
+
+	std::cout << indent << "UNARY_OPERATOR: " << LEXER::tokenToString(type) << '\n';
+
+	if (next) {
+		next->print(depth + 1);
+	}
+	else {
+		std::cout << indent << " Next: nullptr \n";
+	}
+}
+
 Parser::Parser(std::vector<TOKEN> tokens, bool debug) {
 	this->tokens = std::move(tokens);
 	this->debug = debug;
 }
 
 TOKEN Parser::peek() {
-	if (current >= tokens.size()) {
+	size_t tempCurrent = current;
+
+	if (tempCurrent >= tokens.size()) {
 		return TOKEN{ TOKEN_TYPE::END_OF_FILE };
 	}
-	return tokens[current];
+
+	TOKEN token = tokens[tempCurrent];
+
+	while (token.type == TOKEN_TYPE::NEW_LINE) {
+		tempCurrent++;
+		if (tempCurrent >= tokens.size()) {
+			return TOKEN{ TOKEN_TYPE::END_OF_FILE };
+		}
+		token = tokens[tempCurrent];
+	}
+
+	return token;
 }
+
 
 TOKEN Parser::advance() {
 	if (current >= tokens.size()) {
 		return TOKEN{ TOKEN_TYPE::END_OF_FILE };
 	}
 
+	TOKEN token = tokens[current];
 	current++;
-	return tokens[current-1];
-}
 
-bool Parser::checkAheadTokenType(TOKEN_TYPE type) {
-	if (current + 1 >= tokens.size()) {
-		return true;
+	while (token.type == TOKEN_TYPE::NEW_LINE) {
+		if (current >= tokens.size()) {
+			return TOKEN{ TOKEN_TYPE::END_OF_FILE };
+		}
+		token = tokens[current];
+		current++;
 	}
 
-	return tokens[current + 1].type == type;
+	return token;
 }
 
 bool Parser::checkTokenType(TOKEN_TYPE type) {
 	return peek().type == type;
 }
 
-void Parser::start() {
-	std::unique_ptr<Node> root = parseExpresion();
+TOKEN Parser::expect(TOKEN_TYPE type, const std::string& what) {
+	if (!checkTokenType(type)) {
+		TOKEN t = peek();
+		throw std::runtime_error("Expected " + what + " at line " + std::to_string(t.line) +
+			", column " + std::to_string(t.column));
+	}
+	return advance();
+}
 
-	if (root != nullptr) {
-		std::cout << "\n\n--- Parser DUMP ---\n\n";
+void Parser::start() {
+	root = parseExpresion();
+
+	if (debug) {
+		std::cout << "\n ---PARSER DUMP--- \n\n";
 		root->print();
 	}
-	else {
-		std::cout << "Parser gave empty AST tree\n";
-	}
-
 }
 
 std::unique_ptr<Node> Parser::parseExpresion() {
-	TOKEN memory;
-	std::unique_ptr<operatorNode> root;
-	bool afterFirstOperator = false;
-	bool memoryEmpty = true;
+	std::unique_ptr<Node> expresionRoot;
 
-	while (true) {
-		if (!checkTokenType(TOKEN_TYPE::NUMBER) && !afterFirstOperator && !checkTokenType(TOKEN_TYPE::END_OF_FILE)) {
+	expresionRoot = parseTerm();
 
-			root = std::make_unique<operatorNode>(std::make_unique<numberNode>(std::stoll(memory.value)), advance().type);
-			afterFirstOperator = true;
+	while (checkTokenType(TOKEN_TYPE::PLUS) || checkTokenType(TOKEN_TYPE::MINUS)) {
+		std::unique_ptr<operatorNode> temp;
+		temp = std::make_unique<operatorNode>(advance().type, std::move(expresionRoot));
+
+		temp->right = parseTerm();
+		expresionRoot = std::move(temp);
+	}
+
+	return std::move(expresionRoot);
+}
+
+std::unique_ptr<Node> Parser::parseTerm() {
+	std::unique_ptr<Node> termRoot;
+	
+	termRoot = parseFactor();
+	
+	while (checkTokenType(TOKEN_TYPE::MULT) || checkTokenType(TOKEN_TYPE::DIV)) {
+		std::unique_ptr<operatorNode> temp;
+		temp = std::make_unique<operatorNode>(advance().type, std::move(termRoot));
+
+		temp->right = parseFactor();
+		termRoot = std::move(temp);
+	}
+
+	return std::move(termRoot);
+}
+
+std::unique_ptr<Node> Parser::parseFactor() {
+	if (checkTokenType(TOKEN_TYPE::LPAREN)) {
+		advance();//eats '('
+		std::unique_ptr<Node> factorRoot = parseExpresion();
+		expect(TOKEN_TYPE::RPAREN, "a right paren");//eats ')'
+		return factorRoot;
+	}
+	else if (checkTokenType(TOKEN_TYPE::MINUS)) {
+		std::unique_ptr<unaryOperatorNode> temp = std::make_unique<unaryOperatorNode>(advance().type);
+		temp->next = parseFactor();
+		return temp;
+	}
+	else {
+		TOKEN t = expect(TOKEN_TYPE::NUMBER, "a number");
+		if (t.value.find(".") != std::string::npos) {
+			return std::make_unique<numberNode>(std::stod(t.value));
 		}
 		else {
-			if (afterFirstOperator) {
-				if (!root) {
-					std::cout << "CRITICAL ERROR: afterFirstOperator is true, but root is nullptr!\n";
-					return nullptr;
-				}
-
-				if (!checkAheadTokenType(TOKEN_TYPE::NUMBER) && !checkAheadTokenType(TOKEN_TYPE::END_OF_FILE)) {
-					memory = advance();
-
-					root->right = std::make_unique<numberNode>(std::stoll(memory.value));
-					std::unique_ptr<operatorNode> temp;
-
-					temp = std::make_unique<operatorNode>(std::move(root), advance().type);
-					root = std::move(temp);
-				}
-				else {
-					memory = peek();
-					root->right = std::move(std::make_unique<numberNode>(std::stoll(memory.value)));
-
-					return root;
-				}
-			}
-			else {
-				if (peek().type == TOKEN_TYPE::END_OF_FILE) {
-					if (memoryEmpty) {
-						return nullptr;
-					}
-					else {
-						return std::make_unique<numberNode>(std::stoll(memory.value));
-					}
-				}
-				else {
-					memory = advance();
-					memoryEmpty = false;
-				}
-			}
+			return std::make_unique<numberNode>(std::stoll(t.value));
 		}
-	}
+	}	
 }
