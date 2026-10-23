@@ -16,7 +16,7 @@ int main() {
     LEXER lexer(path, true);//file path | debug mode
     lexer.start();
 
-	Parser parser(lexer.getTokens(), true);
+	Parser parser(lexer.getTokens(), true);//tokens | debug mode
 	parser.start();
 
 	return 0;
@@ -24,6 +24,10 @@ int main() {
 
 /* TODO
 
-add if
+add if xD
 
+
+--- NOTES ---
+PARSER::numberNode & identifierNode print -> maybe shorten?
+PARSER::parseComparison -> think abaut the relativity and eaqulity ( a>b==c and c==b>a case)
 */

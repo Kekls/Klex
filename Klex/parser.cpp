@@ -5,7 +5,7 @@
 
 #include "parser.h"
 
-void numberNode::print(int depth) const {
+void numberNode::print(int depth) const {//maybe can shorten
 	std::string indent(depth * 2, ' ');
 	std::cout << indent << "VALUE: ";
 	
@@ -14,23 +14,28 @@ void numberNode::print(int depth) const {
 		}, this->value);
 }
 
+void identifierNode::print(int depth) const {//maybe can shorten
+	std::string indent(depth * 2, ' ');
+	std::cout << indent << "IDENTIFIER: " << this->value << std::endl;
+}
+
 void operatorNode::print(int depth) const {
 	std::string indent(depth * 2, ' ');
 
 	std::cout << indent << "OPERATOR: " << LEXER::tokenToString(type) << '\n';
-
-	if (right) {
-		right->print(depth + 1);
-	}
-	else {
-		std::cout << indent << "  Right: nullptr\n";
-	}
 
 	if (left) {
 		left->print(depth + 1);
 	}
 	else {
 		std::cout << indent << "  Left: nullptr\n";
+	}
+
+	if (right) {
+		right->print(depth + 1);
+	}
+	else {
+		std::cout << indent << "  Right: nullptr\n";
 	}
 }
 
@@ -106,12 +111,46 @@ TOKEN Parser::expect(TOKEN_TYPE type, const std::string& what) {
 }
 
 void Parser::start() {
-	root = parseExpresion();
+	root = parseAssigment();
 
 	if (debug) {
 		std::cout << "\n ---PARSER DUMP--- \n\n";
 		root->print();
 	}
+}
+
+std::unique_ptr<Node> Parser::parseAssigment() {
+	std::unique_ptr<Node> assigmentRoot;
+
+	assigmentRoot = parseComparison();
+
+	while (checkTokenType(TOKEN_TYPE::ASSIGN)) {
+		std::unique_ptr<operatorNode> temp;
+		temp = std::make_unique<operatorNode>(advance().type, std::move(assigmentRoot));
+
+		temp->right = parseComparison();
+		assigmentRoot = std::move(temp);
+	}
+
+	return std::move(assigmentRoot);
+}
+
+std::unique_ptr<Node> Parser::parseComparison() {// --- think abaut the relativity and eaqulity ( a>b==c and c==b>a case)
+	std::unique_ptr<Node> comparisonRoot;
+
+	comparisonRoot = parseExpresion();
+
+	while (checkTokenType(TOKEN_TYPE::EQUAL) || checkTokenType(TOKEN_TYPE::NOT_EQUAL) || checkTokenType(TOKEN_TYPE::LT) 
+		|| checkTokenType(TOKEN_TYPE::LT_EQUAL) || checkTokenType(TOKEN_TYPE::GT) || checkTokenType(TOKEN_TYPE::GT_EQUAL)) {
+
+		std::unique_ptr<operatorNode> temp;
+		temp = std::make_unique<operatorNode>(advance().type, std::move(comparisonRoot));
+
+		temp->right = parseExpresion();
+		comparisonRoot = std::move(temp);
+	}
+
+	return std::move(comparisonRoot);
 }
 
 std::unique_ptr<Node> Parser::parseExpresion() {
@@ -157,6 +196,9 @@ std::unique_ptr<Node> Parser::parseFactor() {
 		std::unique_ptr<unaryOperatorNode> temp = std::make_unique<unaryOperatorNode>(advance().type);
 		temp->next = parseFactor();
 		return temp;
+	}
+	else if (checkTokenType(TOKEN_TYPE::IDENTIFIER)) {
+		return std::make_unique<identifierNode>(advance().value);
 	}
 	else {
 		TOKEN t = expect(TOKEN_TYPE::NUMBER, "a number");

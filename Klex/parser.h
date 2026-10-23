@@ -24,6 +24,15 @@ struct numberNode : public Node {
 	void print(int depth = 0) const override;
 };
 
+struct identifierNode : public Node {
+	std::string name = "identifierNode";
+	std::string value;
+
+	identifierNode(std::string value) : value(value) {}
+
+	void print(int depth = 0) const override;
+};
+
 struct operatorNode : public Node {
 	std::string name = "OperatorNode";
 	std::unique_ptr<Node> left;
@@ -71,6 +80,8 @@ public:
 
 	void start();
 
+	std::unique_ptr<Node> parseAssigment();
+	std::unique_ptr<Node> parseComparison();
 	std::unique_ptr<Node> parseExpresion();
 	std::unique_ptr<Node> parseTerm();
 	std::unique_ptr<Node> parseFactor();
