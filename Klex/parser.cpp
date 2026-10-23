@@ -5,6 +5,17 @@
 
 #include "parser.h"
 
+void programNode::print(int depth) const {
+	for (const std::unique_ptr<Node>& rootNode : roots) {
+		if (rootNode) {
+			rootNode->print(depth + 1);
+			std::cout << "\n     --- + --- \n\n";
+		}
+		else
+			std::cout << "nothing to print!\n\n     --- + --- \n\n";
+	}
+}
+
 void numberNode::print(int depth) const {//maybe can shorten
 	std::string indent(depth * 2, ' ');
 	std::cout << indent << "VALUE: ";
@@ -39,6 +50,19 @@ void operatorNode::print(int depth) const {
 	}
 }
 
+void variableDeclarationNode::print(int depth) const {
+	std::string indent(depth * 2, ' ');
+
+	std::cout << indent << "VARIABLE: " << value << '\n';
+
+	if (inicializtion) {
+		inicializtion->print(depth + 1);
+	}
+	else {
+		std::cout << indent << "  Inicializtion: nullptr\n";
+	}
+}
+
 void unaryOperatorNode::print(int depth) const {
 	std::string indent(depth * 2, ' ');
 
@@ -55,6 +79,7 @@ void unaryOperatorNode::print(int depth) const {
 Parser::Parser(std::vector<TOKEN> tokens, bool debug) {
 	this->tokens = std::move(tokens);
 	this->debug = debug;
+	this->program = std::make_unique<programNode>();
 }
 
 TOKEN Parser::peek() {
@@ -101,6 +126,18 @@ bool Parser::checkTokenType(TOKEN_TYPE type) {
 	return peek().type == type;
 }
 
+void Parser::skipStatement() {
+	if (current >= tokens.size()) return;
+
+	while (!checkTokenType(TOKEN_TYPE::SEMICOLON) && !checkTokenType(TOKEN_TYPE::END_OF_FILE)) {
+		current++;
+	}
+
+	if (checkTokenType(TOKEN_TYPE::SEMICOLON)) {
+		current++;
+	}
+}
+
 TOKEN Parser::expect(TOKEN_TYPE type, const std::string& what) {
 	if (!checkTokenType(type)) {
 		TOKEN t = peek();
@@ -111,12 +148,48 @@ TOKEN Parser::expect(TOKEN_TYPE type, const std::string& what) {
 }
 
 void Parser::start() {
-	root = parseAssigment();
+	while (!checkTokenType(TOKEN_TYPE::END_OF_FILE)) {
+		program->roots.push_back(parseStatement());;
+		current++;
+	}
 
 	if (debug) {
 		std::cout << "\n ---PARSER DUMP--- \n\n";
-		root->print();
+		if (!program->roots.empty())
+			program->print();
+		else
+			std::cout << "nothing to print!\n";
 	}
+}
+
+std::unique_ptr<Node> Parser::parseStatement() {
+	std::unique_ptr<Node> statementRoot;
+
+	switch (peek().type) {
+	case TOKEN_TYPE::VAR: {
+		advance();
+		std::unique_ptr<variableDeclarationNode> temp = std::make_unique<variableDeclarationNode>(expect(TOKEN_TYPE::IDENTIFIER, "identifier").value);
+		if (!checkTokenType(TOKEN_TYPE::SEMICOLON) && !checkTokenType(TOKEN_TYPE::END_OF_FILE)) {
+			expect(TOKEN_TYPE::ASSIGN, "=");
+			temp->inicializtion = parseComparison();
+		}
+		statementRoot = std::move(temp);
+		break;
+	}
+	case TOKEN_TYPE::IF:
+		break;
+	case TOKEN_TYPE::DO:
+		break;
+	case TOKEN_TYPE::WHILE:
+		break;
+	case TOKEN_TYPE::NUMBER:
+		skipStatement();
+		break;
+	default:
+		statementRoot = parseAssigment();
+	}
+
+	return std::move(statementRoot);
 }
 
 std::unique_ptr<Node> Parser::parseAssigment() {

@@ -11,13 +11,21 @@
 
 int main() {
 
-	std::string path = "readFile.kx";
+	try {
+		std::string path = "readFile.kx";
 
-    LEXER lexer(path, true);//file path | debug mode
-    lexer.start();
+		LEXER lexer(path, true);//file path | debug mode
+		lexer.start();
 
-	Parser parser(lexer.getTokens(), true);//tokens | debug mode
-	parser.start();
+		Parser parser(lexer.getTokens(), true);//tokens | debug mode
+		parser.start();
+	}
+	catch (const std::exception& e) {
+		std::cerr << "Error: " << e.what() << '\n';
+		return 1;
+	}
+
+	
 
 	return 0;
 }

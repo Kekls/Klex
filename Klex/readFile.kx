@@ -1,1 +1,7 @@
-some_bool = 5 + -3.14 * (5 + 2 * -mine_variable) <= x 
+var x;
+var rand = 10;
+x = 5 + -3.14 * (5 + 2 * -mine_variable) <= rand;
+
+2+3;
+
+x = rand+1;

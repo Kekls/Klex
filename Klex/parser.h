@@ -14,8 +14,15 @@ struct Node {
 	virtual void print(int depth = 0) const = 0;
 };
 
+struct programNode : public Node {
+	std::string name = "programNode";
+	std::vector<std::unique_ptr<Node>> roots;
+
+	void print(int depth = 0) const override;
+};
+
 struct numberNode : public Node {
-	std::string name = "NumberNode";
+	std::string name = "numberNode";
 	std::variant<long long, double> value;
 
 	numberNode(long long value) : value(value) {}
@@ -61,14 +68,25 @@ struct unaryOperatorNode : public Node {
 	void print(int depth = 0) const override;
 };
 
+struct variableDeclarationNode : public Node {
+	std::string name = "variableDeclarationNode";
+	std::string value;
+
+	std::unique_ptr<Node> inicializtion;
+
+	variableDeclarationNode(std::string value) : value(value) {}
+
+	void print(int depth = 0) const override;
+};
+
 class Parser {
 private:
-	std::vector<TOKEN> tokens;//stores all tokens
+	std::vector<TOKEN> tokens;
 	size_t current = 0;
-	bool debug;//on/off of debug mode
-
+	bool debug = false;
 	TOKEN memory;
-	std::unique_ptr<Node> root;
+
+	std::unique_ptr<programNode> program;
 
 public:
 	Parser(std::vector<TOKEN> tokens, bool debug);
@@ -76,10 +94,12 @@ public:
 	TOKEN peek();
 	TOKEN advance();
 	bool checkTokenType(TOKEN_TYPE type);
+	void skipStatement();
 	TOKEN expect(TOKEN_TYPE type, const std::string& what);
 
 	void start();
 
+	std::unique_ptr<Node> parseStatement();
 	std::unique_ptr<Node> parseAssigment();
 	std::unique_ptr<Node> parseComparison();
 	std::unique_ptr<Node> parseExpresion();
